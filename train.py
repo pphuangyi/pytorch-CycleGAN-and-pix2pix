@@ -26,6 +26,8 @@ from util.visualizer import Visualizer
 
 if __name__ == '__main__':
     opt = TrainOptions().parse()   # get training options
+
+    # Yi's edition:
     dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
     dataset_size = len(dataset)    # get the number of images in the dataset.
     print('The number of training images = %d' % dataset_size)
@@ -38,10 +40,17 @@ if __name__ == '__main__':
     for epoch in range(opt.epoch_count, opt.n_epochs + opt.n_epochs_decay + 1):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         epoch_start_time = time.time()  # timer for entire epoch
         iter_data_time = time.time()    # timer for data loading per iteration
+
+        # Yi's edition: If shuffle is true, use the entire dataset but
+        # only load a small subset.
+        if opt.shuffle:
+            dataset = create_dataset(opt)
+
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
         visualizer.reset()              # reset the visualizer: make sure it saves the results to HTML at least once every epoch
         model.update_learning_rate()    # update learning rates in the beginning of every epoch.
         for i, data in enumerate(dataset):  # inner loop within one epoch
+
             iter_start_time = time.time()  # timer for computation per iteration
             if total_iters % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
@@ -50,6 +59,7 @@ if __name__ == '__main__':
             epoch_iter += opt.batch_size
             model.set_input(data)         # unpack data from dataset and apply preprocessing
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
+
 
             if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
                 save_result = total_iters % opt.update_html_freq == 0

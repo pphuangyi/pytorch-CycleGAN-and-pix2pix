@@ -62,7 +62,7 @@ ZeroCostDL4Mic Colab notebook: [CycleGAN](https://colab.research.google.com/gith
 <a href="https://github.com/architrathore/CycleGAN/">[Tensorflow]</a> (by Archit Rathore),
 <a href="https://github.com/vanhuyz/CycleGAN-TensorFlow">[Tensorflow]</a> (by Van Huy),
 <a href="https://github.com/XHUJOY/CycleGAN-tensorflow">[Tensorflow]</a> (by Xiaowei Hu),
-<a href="https://github.com/LynnHo/CycleGAN-Tensorflow-Simple"> [Tensorflow-simple]</a> (by Zhenliang He),
+<a href="https://github.com/LynnHo/CycleGAN-Tensorflow-2"> [Tensorflow2]</a> (by Zhenliang He),
 <a href="https://github.com/luoxier/CycleGAN_Tensorlayer"> [TensorLayer1.0]</a> (by luoxier),
 <a href="https://github.com/tensorlayer/cyclegan"> [TensorLayer2.0]</a> (by zsdonghao),
 <a href="https://github.com/Aixile/chainer-cyclegan">[Chainer]</a> (by Yanghua Jin),
@@ -112,6 +112,7 @@ cd pytorch-CycleGAN-and-pix2pix
 bash ./datasets/download_cyclegan_dataset.sh maps
 ```
 - To view training results and loss plots, run `python -m visdom.server` and click the URL http://localhost:8097.
+- To log training progress and test images to W&B dashboard, set the `--use_wandb` flag with train and test script
 - Train a model:
 ```bash
 #!./scripts/train_cyclegan.sh
@@ -131,6 +132,7 @@ python test.py --dataroot ./datasets/maps --name maps_cyclegan --model cycle_gan
 bash ./datasets/download_pix2pix_dataset.sh facades
 ```
 - To view training results and loss plots, run `python -m visdom.server` and click the URL http://localhost:8097.
+- To log training progress and test images to W&B dashboard, set the `--use_wandb` flag with train and test script
 - Train a model:
 ```bash
 #!./scripts/train_pix2pix.sh
@@ -212,7 +214,7 @@ Please run `flake8 --ignore E501 .` and `python ./scripts/test_before_push.py` b
 If you use this code for your research, please cite our papers.
 ```
 @inproceedings{CycleGAN2017,
-  title={Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networkss},
+  title={Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks},
   author={Zhu, Jun-Yan and Park, Taesung and Isola, Phillip and Efros, Alexei A},
   booktitle={Computer Vision (ICCV), 2017 IEEE International Conference on},
   year={2017}
