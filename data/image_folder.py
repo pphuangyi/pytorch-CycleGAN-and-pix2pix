@@ -20,16 +20,44 @@ IMG_EXTENSIONS = [
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
 
+def has_extension(filename, extensions):
+    """
+    Yi made changes here
+    so that files with other
+    extensions could be loaded
+    """
+    return any(filename.endswith(extension) for extension in extensions)
 
-def make_dataset(dir, max_dataset_size=float("inf"), shuffle=False):
+
+def make_dataset(
+    dir,
+    max_dataset_size=float("inf"),
+    shuffle=False,
+    extensions=None
+):
+    # Yi made changes here
+    # so that files with other
+    # extensions could be loaded
+    if extensions is not None:
+        if isinstance(extensions, str):
+            extensions = [extensions]
+
     images = []
     assert os.path.isdir(dir), '%s is not a valid directory' % dir
 
     for root, _, fnames in sorted(os.walk(dir)):
         for fname in fnames:
-            if is_image_file(fname):
-                path = os.path.join(root, fname)
-                images.append(path)
+            # Yi made changes here
+            # so that files with other
+            # extensions could be loaded
+            if extensions is not None:
+                if has_extension(fname, extensions):
+                    path = os.path.join(root, fname)
+                    images.append(path)
+            else:
+                if is_image_file(fname):
+                    path = os.path.join(root, fname)
+                    images.append(path)
 
     if shuffle and max_dataset_size < len(images):
         random.shuffle(images)

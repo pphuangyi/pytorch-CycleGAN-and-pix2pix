@@ -27,6 +27,8 @@ See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-p
 See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
 """
 import os
+from pathlib import Path
+import numpy as np
 from options.test_options import TestOptions
 from data import create_dataset
 from models import create_model
@@ -75,14 +77,21 @@ if __name__ == '__main__':
         visuals = model.get_current_visuals()  # get image results
         img_path = model.get_image_paths()     # get image paths
         if i % 5 == 0:  # save images to an HTML file
-            print('processing (%04d)-th image... %s' % (i, img_path))
-        save_images(
-            webpage,
-            visuals,
-            img_path,
-            aspect_ratio=opt.aspect_ratio,
-            width=opt.display_winsize,
-            use_wandb=opt.use_wandb,
-            fake_only=True
-        )
+            print('processing (%04d/%d)-th image... %s' % (i, len(dataset), img_path))
+
+        # Yi made change here to save npz file
+        if opt.is_npz:
+            img_dir = webpage.get_image_dir()
+            save_fname = os.path.join(img_dir, Path(img_path[0]).name)
+            np.savez(save_fname, x=visuals['fake'].cpu().numpy().squeeze())
+        else:
+            save_images(
+                webpage,
+                visuals,
+                img_path,
+                aspect_ratio=opt.aspect_ratio,
+                width=opt.display_winsize,
+                use_wandb=opt.use_wandb,
+                fake_only=True
+            )
     webpage.save()  # save the HTML

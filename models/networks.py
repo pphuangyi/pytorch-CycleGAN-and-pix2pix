@@ -116,7 +116,20 @@ def init_net(net, init_type='normal', init_gain=0.02, gpu_ids=[]):
     return net
 
 
-def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, init_type='normal', init_gain=0.02, gpu_ids=[]):
+def define_G(
+    input_nc,
+    output_nc,
+    ngf,
+    netG,
+    norm='batch',
+    use_dropout=False,
+    init_type='normal',
+    init_gain=0.02,
+    gpu_ids=[],
+    # Yi added the parameter linear_output.
+    # See more detail in ResnetGenerator and UnetGenerator.
+    linear_output=False,
+):
     """Create a generator
 
     Parameters:
@@ -129,6 +142,10 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
         init_type (str)    -- the name of our initialization method.
         init_gain (float)  -- scaling factor for normal, xavier and orthogonal.
         gpu_ids (int list) -- which GPUs the network runs on: e.g., 0,1,2
+
+        # Yi added the parameter linear_output.
+        # See more detail in ResnetGenerator and UnetGenerator.
+        linear_output -- whether to use linear output instead of tanh output.
 
     Returns a generator
 
@@ -147,13 +164,13 @@ def define_G(input_nc, output_nc, ngf, netG, norm='batch', use_dropout=False, in
     norm_layer = get_norm_layer(norm_type=norm)
 
     if netG == 'resnet_9blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9)
+        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=9, linear_output=linear_output)
     elif netG == 'resnet_6blocks':
-        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6)
+        net = ResnetGenerator(input_nc, output_nc, ngf, norm_layer=norm_layer, use_dropout=use_dropout, n_blocks=6, linear_output=linear_output)
     elif netG == 'unet_128':
-        net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+        net = UnetGenerator(input_nc, output_nc, 7, ngf, norm_layer=norm_layer, use_dropout=use_dropout, linear_output=linear_output)
     elif netG == 'unet_256':
-        net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout)
+        net = UnetGenerator(input_nc, output_nc, 8, ngf, norm_layer=norm_layer, use_dropout=use_dropout, linear_output=linear_output)
     else:
         raise NotImplementedError('Generator model name [%s] is not recognized' % netG)
     return init_net(net, init_type, init_gain, gpu_ids)
@@ -318,18 +335,39 @@ class ResnetGenerator(nn.Module):
     We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     """
 
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False, n_blocks=6, padding_type='reflect'):
+    def __init__(
+        self,
+        input_nc,
+        output_nc,
+        ngf=64,
+        norm_layer=nn.BatchNorm2d,
+        use_dropout=False,
+        n_blocks=6,
+        padding_type='reflect',
+        # Yi added the following 1 line of code.
+        # If lienar_output is true,
+        # please omit the final tanh activation.
+        linear_output=False,
+    ):
+
         """Construct a Resnet-based generator
 
         Parameters:
-            input_nc (int)      -- the number of channels in input images
-            output_nc (int)     -- the number of channels in output images
-            ngf (int)           -- the number of filters in the last conv layer
-            norm_layer          -- normalization layer
-            use_dropout (bool)  -- if use dropout layers
-            n_blocks (int)      -- the number of ResNet blocks
-            padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
+            input_nc (int)       -- the number of channels in input images
+            output_nc (int)      -- the number of channels in output images
+            ngf (int)            -- the number of filters in the last conv layer
+            norm_layer           -- normalization layer
+            use_dropout (bool)   -- if use dropout layers
+            n_blocks (int)       -- the number of ResNet blocks
+            padding_type (str)   -- the name of padding layer in conv layers: reflect | replicate | zero
+
+            # Yi add the following description
+            linear_output (bool) -- if linear_output is false, use tanh activation for output,
+                                    omit the final activation if otherwise.
         """
+
+        print(f'\nlinear output in ResNet generator: {linear_output}\n')
+
         assert(n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         if type(norm_layer) == functools.partial:
@@ -364,7 +402,12 @@ class ResnetGenerator(nn.Module):
                       nn.ReLU(True)]
         model += [nn.ReflectionPad2d(3)]
         model += [nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0)]
-        model += [nn.Tanh()]
+
+        # Yi added the following 2 lines of code.
+        # If linear_output is true,
+        # please omit the final tanh activation.
+        if not linear_output:
+            model += [nn.Tanh()]
 
         self.model = nn.Sequential(*model)
 
@@ -436,19 +479,36 @@ class ResnetBlock(nn.Module):
 class UnetGenerator(nn.Module):
     """Create a Unet-based generator"""
 
-    def __init__(self, input_nc, output_nc, num_downs, ngf=64, norm_layer=nn.BatchNorm2d, use_dropout=False):
+    def __init__(
+        self,
+        input_nc,
+        output_nc,
+        num_downs,
+        ngf=64,
+        norm_layer=nn.BatchNorm2d,
+        use_dropout=False,
+        # Yi added the following 1 line of code.
+        # If lienar_output is true,
+        # please omit the final tanh activation.
+        linear_output=False,
+    ):
         """Construct a Unet generator
         Parameters:
-            input_nc (int)  -- the number of channels in input images
-            output_nc (int) -- the number of channels in output images
-            num_downs (int) -- the number of downsamplings in UNet. For example, # if |num_downs| == 7,
-                                image of size 128x128 will become of size 1x1 # at the bottleneck
-            ngf (int)       -- the number of filters in the last conv layer
-            norm_layer      -- normalization layer
+            input_nc (int)         -- the number of channels in input images
+            output_nc (int)        -- the number of channels in output images
+            num_downs (int)        -- the number of downsamplings in UNet. For example, # if |num_downs| == 7,
+                                      image of size 128x128 will become of size 1x1 # at the bottleneck
+            ngf (int)              -- the number of filters in the last conv layer
+            norm_layer             -- normalization layer
+
+            # Yi add the following description
+            linear_output (bool) -- if linear_output is false, use tanh activation for output,
+                                    omit the final activation if otherwise.
 
         We construct the U-Net from the innermost layer to the outermost layer.
         It is a recursive process.
         """
+
         super(UnetGenerator, self).__init__()
         # construct unet structure
         unet_block = UnetSkipConnectionBlock(ngf * 8, ngf * 8, input_nc=None, submodule=None, norm_layer=norm_layer, innermost=True)  # add the innermost layer
@@ -458,7 +518,15 @@ class UnetGenerator(nn.Module):
         unet_block = UnetSkipConnectionBlock(ngf * 4, ngf * 8, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
         unet_block = UnetSkipConnectionBlock(ngf * 2, ngf * 4, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
         unet_block = UnetSkipConnectionBlock(ngf, ngf * 2, input_nc=None, submodule=unet_block, norm_layer=norm_layer)
-        self.model = UnetSkipConnectionBlock(output_nc, ngf, input_nc=input_nc, submodule=unet_block, outermost=True, norm_layer=norm_layer)  # add the outermost layer
+        self.model = UnetSkipConnectionBlock(
+            output_nc,
+            ngf,
+            input_nc=input_nc,
+            submodule=unet_block,
+            outermost=True,
+            norm_layer=norm_layer,
+            linear_output=linear_output
+        )  # add the outermost layer
 
     def forward(self, input):
         """Standard forward"""
@@ -471,8 +539,22 @@ class UnetSkipConnectionBlock(nn.Module):
         |-- downsampling -- |submodule| -- upsampling --|
     """
 
-    def __init__(self, outer_nc, inner_nc, input_nc=None,
-                 submodule=None, outermost=False, innermost=False, norm_layer=nn.BatchNorm2d, use_dropout=False):
+    def __init__(
+        self,
+        outer_nc,
+        inner_nc,
+        input_nc=None,
+        submodule=None,
+        outermost=False,
+        innermost=False,
+        norm_layer=nn.BatchNorm2d,
+        use_dropout=False,
+        # Yi added the following 1 line of code.
+        # If lienar_output is true,
+        # please omit the final tanh activation.
+        linear_output=False,
+
+):
         """Construct a Unet submodule with skip connections.
 
         Parameters:
@@ -484,7 +566,12 @@ class UnetSkipConnectionBlock(nn.Module):
             innermost (bool)    -- if this module is the innermost module
             norm_layer          -- normalization layer
             use_dropout (bool)  -- if use dropout layers.
+
+            # Yi add the following description
+            linear_output (bool) -- if linear_output is false, use tanh activation for output,
+                                    omit the final activation if otherwise.
         """
+
         super(UnetSkipConnectionBlock, self).__init__()
         self.outermost = outermost
         if type(norm_layer) == functools.partial:
@@ -501,11 +588,19 @@ class UnetSkipConnectionBlock(nn.Module):
         upnorm = norm_layer(outer_nc)
 
         if outermost:
+            print(f'\nlinear output in UNet generator: {linear_output}\n')
             upconv = nn.ConvTranspose2d(inner_nc * 2, outer_nc,
                                         kernel_size=4, stride=2,
                                         padding=1)
             down = [downconv]
-            up = [uprelu, upconv, nn.Tanh()]
+
+            # Yi modified the definition of the `up` block
+            # in the outermost layer of the UNET
+            # Append a tanh activation only if linear_output is false.
+            up = [uprelu, upconv]
+            if not linear_output:
+                up += [nn.Tanh()]
+
             model = down + [submodule] + up
         elif innermost:
             upconv = nn.ConvTranspose2d(inner_nc, outer_nc,
